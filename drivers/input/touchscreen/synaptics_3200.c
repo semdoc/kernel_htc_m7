@@ -228,29 +228,6 @@ extern uint8_t touchscreen_is_on(void)
 	return 0;
 } 
 
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
-int s2w_switch = 1;
-int l2m_switch = 1;
-int l2w_switch = 0;
-int dt2w_switch = 1;
-int s2w_wakestat = 0;
-int s2w_hist[2] = {0, 0};
-cputime64_t s2w_time[2] = {0, 0};
-int l2m_hist[2] = {0, 0};
-cputime64_t l2m_time[2] = {0, 0};
-cputime64_t dt2w_time[2] = {0, 0};
-unsigned int dt2w_x[2] = {0, 0};
-unsigned int dt2w_y[2] = {0, 0};
-int wakesleep_vib = 0;
-int vib_strength = 15;
-static int break_longtap_count = 0;
-#define S2W_TIMEOUT 350
-#define L2M_TIMEOUT 300
-#define DT2W_TIMEOUT_MAX 275
-#define DT2W_TIMEOUT_MIN 150
-#define DT2W_DELTA 200
-#define L2W_TIMEOUT 50
-
 static struct input_dev * sweep2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static DEFINE_MUTEX(longtap_count_lock);
