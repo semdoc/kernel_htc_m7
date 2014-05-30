@@ -2450,8 +2450,8 @@ static void dt2w_func(int x, int y, cputime64_t trigger_time) {
 
         if (scr_suspended) {
 		if (
-		y < 2880
-		&& y > 2000
+		y < 2880 && y > 2100
+		&& x > 150 && x < 1470
 		&& ((dt2w_time[0]-dt2w_time[1]) > DT2W_TIMEOUT_MIN)
 		&& ((dt2w_time[0]-dt2w_time[1]) < DT2W_TIMEOUT_MAX)
 		&& (abs(delta_x) < DT2W_DELTA)
