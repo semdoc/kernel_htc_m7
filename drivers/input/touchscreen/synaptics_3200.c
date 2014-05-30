@@ -157,7 +157,35 @@ static irqreturn_t synaptics_irq_thread(int irq, void *ptr);
 extern unsigned int get_tamper_sf(void);
 
 
-bool scr_suspended = false;
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
+
+#define S2W_START 3
+#define S2W_TIMEOUT 35
+#define S2W_TIMEOUT2 60
+#define S2W_TIMEOUT3 70
+#define L2M_TIMEOUT 30
+#define DT2W_TIMEOUT_MAX 80
+#define DT2W_TIMEOUT_MIN 1
+#define DT2W_DELTA 200
+#define L2W_TIMEOUT 50
+
+static bool scr_suspended = false;
+static int button_id = 0;
+static int s2w_switch = 1;
+static int l2m_switch = 1;
+static int l2w_switch = 0;
+static int dt2w_switch = 1;
+static int pocket_detect = 1;
+static int s2w_hist[2] = {0, 0};
+static unsigned long s2w_time[3] = {0, 0, 0};
+static unsigned long l2m_time[2] = {0, 0};
+static unsigned long dt2w_time[2] = {0, 0};
+static unsigned int dt2w_x[2] = {0, 0};
+static unsigned int dt2w_y[2] = {0, 0};
+static unsigned long pwrtrigger_time[2] = {0, 0};
+static int wakesleep_vib = 0;
+static int vib_strength = 15;
+static int break_longtap_count = 0;
 
 extern uint8_t touchscreen_is_on(void)
 {
