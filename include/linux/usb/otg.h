@@ -269,5 +269,3 @@ usb_unregister_notifier(struct usb_phy *x, struct notifier_block *nb)
 }
 
 extern int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num);
-
-#endif 
