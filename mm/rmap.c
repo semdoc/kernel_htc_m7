@@ -75,9 +75,9 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
 	 * happen _before_ what follows.
 	 */
 	might_sleep();
-	if (rwsem_is_locked(&anon_vma->root->rwsem)) {
-		anon_vma_lock_write(anon_vma);
-		anon_vma_unlock_write(anon_vma);
+	if (mutex_is_locked(&anon_vma->root->mutex)) {
+		anon_vma_lock(anon_vma);
+		anon_vma_unlock(anon_vma);
 	}
 
 	kmem_cache_free(anon_vma_cachep, anon_vma);
