@@ -803,6 +803,7 @@ static void sierra_close(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
 	struct sierra_intf_private *intfdata = port->serial->private;
+	struct urb *urb;
 
 
 	dev_dbg(&port->dev, "%s\n", __func__);
@@ -828,13 +829,22 @@ static void sierra_close(struct usb_serial_port *port)
 		spin_unlock_irq(&intfdata->susp_lock);
 
 
-		/* Stop reading urbs */
-		sierra_stop_rx_urbs(port);
-		/* .. and release them */
-		for (i = 0; i < portdata->num_in_urbs; i++) {
-			sierra_release_urb(portdata->in_urbs[i]);
-			portdata->in_urbs[i] = NULL;
-		}
+	for (;;) {
+		urb = usb_get_from_anchor(&portdata->delayed);
+		if (!urb)
+			break;
+		kfree(urb->transfer_buffer);
+		usb_free_urb(urb);
+		usb_autopm_put_interface_async(serial->interface);
+		spin_lock(&portdata->lock);
+		portdata->outstanding_urbs--;
+		spin_unlock(&portdata->lock);
+	}
+
+	sierra_stop_rx_urbs(port);
+	for (i = 0; i < portdata->num_in_urbs; i++) {
+		sierra_release_urb(portdata->in_urbs[i]);
+		portdata->in_urbs[i] = NULL;
 	}
 }
 
