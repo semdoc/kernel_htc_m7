@@ -529,30 +529,51 @@ int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 }
 EXPORT_SYMBOL(usb_wwan_open);
 
+static void unbusy_queued_urb(struct urb *urb,
+					struct usb_wwan_port_private *portdata)
+{
+	int i;
+
+	for (i = 0; i < N_OUT_URB; i++) {
+		if (urb == portdata->out_urbs[i]) {
+			clear_bit(i, &portdata->out_busy);
+			break;
+		}
+	}
+}
+
 void usb_wwan_close(struct usb_serial_port *port)
 {
 	int i;
 	struct usb_serial *serial = port->serial;
 	struct usb_wwan_port_private *portdata;
 	struct usb_wwan_intf_private *intfdata = port->serial->private;
+	struct urb *urb;
 
 	dbg("%s", __func__);
 	portdata = usb_get_serial_port_data(port);
 
-	if (serial->dev) {
-		/* Stop reading/writing urbs */
-		spin_lock_irq(&intfdata->susp_lock);
-		portdata->opened = 0;
-		spin_unlock_irq(&intfdata->susp_lock);
+<	/* Stop reading/writing urbs */
+	spin_lock_irq(&intfdata->susp_lock);
+	portdata->opened = 0;
+	spin_unlock_irq(&intfdata->susp_lock);
 
-		for (i = 0; i < N_IN_URB; i++)
-			usb_kill_urb(portdata->in_urbs[i]);
-		for (i = 0; i < N_OUT_URB; i++)
-			usb_kill_urb(portdata->out_urbs[i]);
-		/* balancing - important as an error cannot be handled*/
-		usb_autopm_get_interface_no_resume(serial->interface);
-		serial->interface->needs_remote_wakeup = 0;
+	for (;;) {
+		urb = usb_get_from_anchor(&portdata->delayed);
+		if (!urb)
+			break;
+		unbusy_queued_urb(urb, portdata);
+		usb_autopm_put_interface_async(serial->interface);
 	}
+
+	for (i = 0; i < N_IN_URB; i++)
+		usb_kill_urb(portdata->in_urbs[i]);
+	for (i = 0; i < N_OUT_URB; i++)
+		usb_kill_urb(portdata->out_urbs[i]);
+
+	/* balancing - important as an error cannot be handled*/
+	usb_autopm_get_interface_no_resume(serial->interface);
+	serial->interface->needs_remote_wakeup = 0;
 }
 EXPORT_SYMBOL(usb_wwan_close);
 
@@ -768,18 +789,6 @@ int usb_wwan_suspend(struct usb_serial *serial, pm_message_t message)
 	return 0;
 }
 EXPORT_SYMBOL(usb_wwan_suspend);
-
-static void unbusy_queued_urb(struct urb *urb, struct usb_wwan_port_private *portdata)
-{
-	int i;
-
-	for (i = 0; i < N_OUT_URB; i++) {
-		if (urb == portdata->out_urbs[i]) {
-			clear_bit(i, &portdata->out_busy);
-			break;
-		}
-	}
-}
 
 static void play_delayed(struct usb_serial_port *port)
 {
