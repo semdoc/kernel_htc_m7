@@ -2064,11 +2064,9 @@ struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 {
 	struct sk_buff *segs = NULL;
 	struct sk_buff *tail = NULL;
-	struct sk_buff *list_skb = skb_shinfo(head_skb)->frag_list;
-	skb_frag_t *frag = skb_shinfo(head_skb)->frags;
-	unsigned int mss = skb_shinfo(head_skb)->gso_size;
-	unsigned int doffset = head_skb->data - skb_mac_header(head_skb);
-	struct sk_buff *frag_skb = head_skb;
+	struct sk_buff *fskb = skb_shinfo(skb)->frag_list;
+	unsigned int mss = skb_shinfo(skb)->gso_size;
+	unsigned int doffset = skb->data - skb_mac_header(skb);
 	unsigned int offset = doffset;
 	unsigned int headroom;
 	unsigned int len;
@@ -2101,26 +2099,9 @@ struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 		if (!hsize && i >= nfrags) {
 			BUG_ON(fskb->len != len);
 
-			i = 0;
-			nfrags = skb_shinfo(list_skb)->nr_frags;
-			frag = skb_shinfo(list_skb)->frags;
-			frag_skb = list_skb;
-			pos += skb_headlen(list_skb);
-
-			while (pos < offset + len) {
-				BUG_ON(i >= nfrags);
-
-				size = skb_frag_size(frag);
-				if (pos + size > offset + len)
-					break;
-
-				i++;
-				pos += size;
-				frag++;
-			}
-
-			nskb = skb_clone(list_skb, GFP_ATOMIC);
-			list_skb = list_skb->next;
+			pos += len;
+			nskb = skb_clone(fskb, GFP_ATOMIC);
+			fskb = fskb->next;
 
 			if (unlikely(!nskb))
 				goto err;
@@ -2185,37 +2166,10 @@ struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 		skb_copy_from_linear_data_offset(skb, offset,
 						 skb_put(nskb, hsize), hsize);
 
-<		skb_shinfo(nskb)->tx_flags = skb_shinfo(head_skb)->tx_flags &
-			SKBTX_SHARED_FRAG;
-
-		while (pos < offset + len) {
-			if (i >= nfrags) {
-				BUG_ON(skb_headlen(list_skb));
-
-				i = 0;
-				nfrags = skb_shinfo(list_skb)->nr_frags;
-				frag = skb_shinfo(list_skb)->frags;
-				frag_skb = list_skb;
-
-				BUG_ON(!nfrags);
-
-				list_skb = list_skb->next;
-			}
-
-			if (unlikely(skb_shinfo(nskb)->nr_frags >=
-				     MAX_SKB_FRAGS)) {
-				net_warn_ratelimited(
-					"skb_segment: too many frags: %u %u\n",
-					pos, mss);
-				goto err;
-			}
-
-			if (unlikely(skb_orphan_frags(frag_skb, GFP_ATOMIC)))
-				goto err;
-
-			*nskb_frag = *frag;
-			__skb_frag_ref(nskb_frag);
-			size = skb_frag_size(nskb_frag);
+		while (pos < offset + len && i < nfrags) {
+			*frag = skb_shinfo(skb)->frags[i];
+			__skb_frag_ref(frag);
+			size = skb_frag_size(frag);
 
 			if (pos < offset) {
 				frag->page_offset += offset - pos;
